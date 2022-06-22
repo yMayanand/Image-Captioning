@@ -1,0 +1,8 @@
+/Flicker8k_Dataset
+/Flicker8k_text
+/Flickr8k_Dataset.zip
+/Flickr8k_text.zip
+*.ipynb
+/checkpoint
+*.pyc
+
