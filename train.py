@@ -66,9 +66,9 @@ def train_model():
         loss_store.append(np.mean(temp_store))
         print(f"Epoch: {i} Loss: {loss_store[i]}")
         
-    torch.save({'decoder_weights': decoder.state_dict()}, 'model1.pt')
+    torch.save({'decoder_weights': decoder.state_dict()}, os.path.join(args.root_dir, 'model1.pt'))
     plt.plot(loss_store)
-    plt.savefig('loss.png')
+    plt.savefig(os.path.join(args.root_dir, 'loss.png'))
 
 if __name__ == '__main__':
     train_model()
