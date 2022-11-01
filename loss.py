@@ -16,7 +16,7 @@ class CaptionLoss(nn.Module):
         criterion = nn.CrossEntropyLoss()
         batch_size = x.shape[0]
         for i in range(batch_size):
-            inp = self.decoder.emb(torch.LongTensor([tokenizer.val2idx['START']]).to(device)) # start token
+            inp = self.decoder.emb(torch.LongTensor([self.tokenizer.val2idx['START']]).to(device)) # start token
             
             self.decoder.init_states(x[i])
             for label in labels[i]:
