@@ -12,7 +12,7 @@ TEXT_URL = "https://github.com/jbrownlee/Datasets/releases/download/Flickr8k/Fli
 
 files = ['Flickr8k_Dataset.zip', 'Flickr8k_text.zip']
 
-def download_and_extract(url, fname):
+def download_and_extract(url, fname, root):
     """Downloads the zip file from given url and extracts
     it in given folder
 
@@ -28,20 +28,20 @@ def download_and_extract(url, fname):
     -------
     None
     """
-    path = os.path.join('./', fname)
+    path = os.path.join(root, fname)
     if os.path.exists(path): # if file already exsits than dont extract it again
         return
     request.urlretrieve(url, fname)
-    with zipfile.ZipFile(fname, 'r') as f:
-        f.extractall()
+    with zipfile.ZipFile(path, 'r') as f:
+        f.extractall(root)
 
-def download_data():
-    download_and_extract(IMAGE_URL, files[0])
-    download_and_extract(TEXT_URL, files[1])
+def download_data(root):
+    download_and_extract(IMAGE_URL, files[0], root)
+    download_and_extract(TEXT_URL, files[1], root)
 
-    path = './Flicker8k_text'
+    path = os.path.join(root, 'Flicker8k_text')
     os.makedirs(path, exist_ok=True)
-    for file in glob('./*.txt'):
+    for file in glob(os.path.join(root, '*.txt')):
         fname = file.rsplit('/')[-1]
         shutil.move(file, os.path.join(path, fname))
 
