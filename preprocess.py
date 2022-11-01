@@ -80,6 +80,3 @@ temp = read_file('./Flicker8k_text/Flickr_8k.devImages.txt')
 val_df = pd.DataFrame(temp, columns=['id'])
 temp = read_file('./Flicker8k_text/Flickr_8k.testImages.txt')
 test_df = pd.DataFrame(temp, columns=['id'])
-
-tokenizer = Tokenizer('./')
-tokenizer.tokenize('Flicker8k_text/Flickr_8k.trainImages.txt')
