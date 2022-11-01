@@ -1,4 +1,3 @@
-from preprocess import tokenizer
 import torch
 
 def decode_caption(idx):
