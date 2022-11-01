@@ -33,6 +33,8 @@ def train_model():
         transforms.ToTensor()
     ])
 
+    global tokenizer
+
     tokenizer = Tokenizer(args.root_dir)
 
     encoder = Encoder().to(device)

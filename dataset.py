@@ -16,7 +16,6 @@ class CaptionDataset(torch.utils.data.Dataset):
         return len(self.df)
 
     def __getitem__(self, idx):
-        global tokenizer
         image_path = self.df['id'][idx]
         caption = tokenizer.caption_df[tokenizer.caption_df['id']==image_path].reset_index(drop=True)['caption'][0].lower().strip().split()
         caption = [tokenizer.val2idx[i] for i in caption]
