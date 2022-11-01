@@ -14,9 +14,6 @@ from argparse import ArgumentParser
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-encoder = Encoder().to(device)
-decoder = Decoder().to(device)
-
 def load_from_ckpt(encoder, decoder, path):
     weights = torch.load(path, map_location=device)
     encoder.load_state_dict(weights['encoder'])
@@ -37,6 +34,9 @@ def train_model():
     ])
 
     tokenizer = Tokenizer(args.root_dir)
+
+    encoder = Encoder().to(device)
+    decoder = Decoder(tokenizer).to(device)
 
     train_ds = CaptionDataset(os.path.join(args.root_dir, 'Flicker8k_text/Flickr_8k.trainImages.txt'), transform=tfms)
     val_ds = CaptionDataset(os.path.join(args.root_dir, 'Flicker8k_text/Flickr_8k.devImages.txt'), transform=tfms)

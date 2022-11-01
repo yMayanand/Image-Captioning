@@ -1,6 +1,5 @@
 from torchvision import models
 import torch.nn as nn
-from preprocess import tokenizer
 
 class Encoder(nn.Module):
     def __init__(self):
@@ -18,7 +17,7 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self):
+    def __init__(self, tokenizer):
         super().__init__()
         self.emb = nn.Embedding(len(tokenizer.vocab), 512) # size (b, 512)
         self.lstm1 = nn.LSTMCell(512, 512) 
