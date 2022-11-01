@@ -31,7 +31,7 @@ def download_and_extract(url, fname, root):
     path = os.path.join(root, fname)
     if os.path.exists(path): # if file already exsits than dont extract it again
         return
-    request.urlretrieve(url, fname)
+    request.urlretrieve(url, path)
     with zipfile.ZipFile(path, 'r') as f:
         f.extractall(root)
 
