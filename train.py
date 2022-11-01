@@ -5,7 +5,7 @@ import torch.optim as optim
 import matplotlib.pyplot as plt
 from loss import CaptionLoss
 from model import Encoder, Decoder
-from preprocess import tokenizer
+from preprocess import Tokenizer
 from dataset import CaptionDataset
 from torchvision import transforms
 from utils import cust_collate
@@ -35,6 +35,8 @@ def train_model():
         transforms.Resize((256, 256)),
         transforms.ToTensor()
     ])
+
+    tokenizer = Tokenizer(args.root_dir)
 
     train_ds = CaptionDataset(os.path.join(args.root_dir, 'Flicker8k_text/Flickr_8k.trainImages.txt'), transform=tfms)
     val_ds = CaptionDataset(os.path.join(args.root_dir, 'Flicker8k_text/Flickr_8k.devImages.txt'), transform=tfms)
