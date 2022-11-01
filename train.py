@@ -34,6 +34,7 @@ def train_model():
     ])
 
     tokenizer = Tokenizer(args.root_dir)
+    tokenizer.tokenize(os.path.join(args.root_dir, 'Flicker8k_text/Flickr_8k.trainImages.txt'))
 
     encoder = Encoder().to(device)
     decoder = Decoder(tokenizer).to(device)
