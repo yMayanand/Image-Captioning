@@ -1,15 +1,15 @@
 import torch
 import torch.nn as nn
-from preprocess import tokenizer
 import numpy as np
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class CaptionLoss(nn.Module):
-    def __init__(self, decoder, teacher_forcing):
+    def __init__(self, decoder, teacher_forcing, tokenizer):
         super().__init__()
         self.decoder = decoder
         self.teacher_forcing = teacher_forcing
+        self.tokenizer = tokenizer
 
     def forward(self, x, labels):
         loss = 0.
@@ -29,7 +29,7 @@ class CaptionLoss(nn.Module):
                 else:
                     inp = self.decoder.emb(label)
                 loss += criterion(out, label)
-            label = torch.LongTensor([tokenizer.val2idx['STOP']]).to(device) # stop token
+            label = torch.LongTensor([self.tokenizer.val2idx['STOP']]).to(device) # stop token
             out, *(self.decoder.hn, self.decoder.cn) = self.decoder(inp, self.decoder.hn, self.decoder.cn)
             loss += criterion(out, label)
         return loss / batch_size

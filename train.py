@@ -44,7 +44,7 @@ def train_model():
     train_dl = torch.utils.data.DataLoader(train_ds, batch_size=32, shuffle=True, pin_memory=True, num_workers=2, collate_fn=cust_collate)
     val_dl = torch.utils.data.DataLoader(val_ds, batch_size=32, pin_memory=True, num_workers=2, collate_fn=cust_collate)
 
-    criterion = CaptionLoss(decoder, 0.5)
+    criterion = CaptionLoss(decoder, 0.5, tokenizer)
     params = list(decoder.parameters()) #+ list(encoder.parameters()) + 
     optimizer = torch.optim.Adam(params, lr=args.lr)
     sched = optim.lr_scheduler.OneCycleLR(optimizer, max_lr=0.001, steps_per_epoch=len(train_dl), epochs=10)
