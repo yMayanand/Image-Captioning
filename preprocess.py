@@ -73,10 +73,3 @@ class Tokenizer:
     def complete(self):
         self.idx2val = {key: value for value, key in self.val2idx.items()}
         self.val2idx = defaultdict(lambda: 2, self.val2idx)
-
-
-
-temp = read_file('./Flicker8k_text/Flickr_8k.devImages.txt')
-val_df = pd.DataFrame(temp, columns=['id'])
-temp = read_file('./Flicker8k_text/Flickr_8k.testImages.txt')
-test_df = pd.DataFrame(temp, columns=['id'])
