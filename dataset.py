@@ -2,7 +2,7 @@ import os
 import torch
 from PIL import Image
 import pandas as pd
-from preprocess import tokenizer, read_file
+from preprocess import read_file
 
 class CaptionDataset(torch.utils.data.Dataset):
     def __init__(self, fname, transform=None):
