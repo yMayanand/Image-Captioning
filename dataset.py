@@ -5,8 +5,9 @@ import pandas as pd
 from preprocess import read_file
 
 class CaptionDataset(torch.utils.data.Dataset):
-    def __init__(self, fname, tokenizer, transform=None):
-        self.root = fname.split('/')[0]
+    def __init__(self, root, fname, tokenizer, transform=None):
+        fname = os.path.join(root, fname)
+        self.root = root
         self.tfms = transform
         super().__init__()
         temp = read_file(fname)
