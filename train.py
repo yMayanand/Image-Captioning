@@ -1,5 +1,6 @@
 import os
 import torch
+import numpy as np
 import torch.optim as optim
 import matplotlib.pyplot as plt
 from loss import CaptionLoss
@@ -42,10 +43,11 @@ def train_model():
     val_dl = torch.utils.data.DataLoader(val_ds, batch_size=32, pin_memory=True, num_workers=2, collate_fn=cust_collate)
 
     criterion = CaptionLoss(decoder, 0.5)
-    params = list(encoder.parameters()) + list(decoder.parameters())
+    params = list(decoder.parameters()) #+ list(encoder.parameters()) + 
     optimizer = torch.optim.Adam(params, lr=args.lr)
     sched = optim.lr_scheduler.OneCycleLR(optimizer, max_lr=0.001, steps_per_epoch=len(train_dl), epochs=10)
     epochs = args.epochs
+    loss_store = []
 
     for i in tqdm(range(epochs)):
         temp_store = []
@@ -61,9 +63,15 @@ def train_model():
             sched.step()
             optimizer.zero_grad()
             temp_store.append(loss.item())
-        print(f"Epoch: {i} Loss: {temp_store[i]}")
-    plt.plot(temp_store)
+        loss_store.append(np.mean(temp_store))
+        print(f"Epoch: {i} Loss: {loss_store[i]}")
+        
+    torch.save({'decoder_weights': decoder.state_dict()}, 'model1.pt')
+    plt.plot(loss_store)
     plt.savefig('loss.png')
+
+if __name__ == '__main__':
+    train_model()
 
 #load_from_ckpt(encoder, decoder, './checkpoint/caption.pt')
 
