@@ -29,7 +29,7 @@ def train_model():
     args = parser.parse_args()
 
     tfms = transforms.Compose([
-        transforms.Resize((256, 256)),
+        transforms.Resize((400, 400)),
         transforms.ToTensor()
     ])
 
@@ -82,10 +82,17 @@ if __name__ == '__main__':
 #load_from_ckpt(encoder, decoder, './checkpoint/caption.pt')
 
 # TODO: move this function to another module
-def predict(data):
+def predict(encoder, decoder,  tokenizer, data):
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    encoder = encoder.to(device)
     encoder.eval()
+
+    decoder = decoder.to(device)
     decoder.eval()
+
     data = data.to(device)
+
     im_hid = encoder(data)
     inp = decoder.emb(torch.LongTensor([tokenizer.val2idx['START']]).to(device))
     tot = 0
