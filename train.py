@@ -50,7 +50,7 @@ def train_model():
     #param_groups = [{'params': encoder.parameters(), 'lr': 1e-5},
                     #{'params': decoder.parameters(), 'lr': 1e-2}]
 
-    optimizer = torch.optim.Adam(param_groups, lr=args.lr)
+    optimizer = torch.optim.Adam(params, lr=args.lr)
     #sched = optim.lr_scheduler.OneCycleLR(optimizer, max_lr=0.001, steps_per_epoch=len(train_dl), epochs=10)
     epochs = args.epochs
     loss_store = []
