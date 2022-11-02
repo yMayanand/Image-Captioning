@@ -46,9 +46,12 @@ def train_model():
     val_dl = torch.utils.data.DataLoader(val_ds, batch_size=32, pin_memory=True, num_workers=2, collate_fn=cust_collate)
 
     criterion = CaptionLoss(decoder, 0.5, tokenizer)
-    params = list(decoder.parameters()) #+ list(encoder.parameters()) + 
-    optimizer = torch.optim.Adam(params, lr=args.lr)
-    sched = optim.lr_scheduler.OneCycleLR(optimizer, max_lr=0.001, steps_per_epoch=len(train_dl), epochs=10)
+    #params = list(decoder.parameters()) #+ list(encoder.parameters()) + 
+    param_groups = [{'params': encoder.parameters(), 'lr': 1e-5},
+                    {'params': decoder.parameters(), 'lr': 1e-2}]
+
+    optimizer = torch.optim.Adam(*param_groups, lr=args.lr)
+    #sched = optim.lr_scheduler.OneCycleLR(optimizer, max_lr=0.001, steps_per_epoch=len(train_dl), epochs=10)
     epochs = args.epochs
     loss_store = []
 
@@ -63,7 +66,7 @@ def train_model():
             loss = criterion(im_hid, labels)
             loss.backward()
             optimizer.step()
-            sched.step()
+            #sched.step()
             optimizer.zero_grad()
             temp_store.append(loss.item())
         loss_store.append(np.mean(temp_store))
