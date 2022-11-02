@@ -8,8 +8,8 @@ class Encoder(nn.Module):
         backbone = [module for module in backbone.children()][:-1]
         backbone.append(nn.Flatten())
         self.backbone = nn.Sequential(*backbone)
-        #for param in self.backbone.parameters():
-            #param.requires_grad = False
+        for param in self.backbone.parameters():
+            param.requires_grad = False
 
     
     def forward(self, x):
