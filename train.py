@@ -138,13 +138,11 @@ def evaluate(root_dir, ds_path, model_path):
         data = data.unsqueeze(0)
 
         # predict on that item
-        candidate_corpus = [[predict(encoder, decoder,  tokenizer, data).split()]]
+        candidate_corpus = [predict(encoder, decoder,  tokenizer, data).split()]
 
         reference_corpus = [tokenizer.idx2val[i.item()] for i in label]
         reference_corpus = [[reference_corpus]]
 
-        print(candidate_corpus)
-        print(reference_corpus)
         # get the bleu score
         score = bleu_score(candidate_corpus, reference_corpus)
         score_list.append(score)
