@@ -8,6 +8,7 @@ from model import Encoder, Decoder
 from preprocess import Tokenizer
 from dataset import CaptionDataset
 from torchvision import transforms
+from torchtext.data.metrics import bleu_score 
 from utils import cust_collate
 from tqdm import tqdm
 from argparse import ArgumentParser
@@ -109,3 +110,35 @@ def predict(encoder, decoder,  tokenizer, data):
             break
         inp = decoder.emb(torch.LongTensor([tokenizer.val2idx[pred_token]]).to(device))
     return " ".join(gen_caps)
+
+def evaluate(root_dir, ds_path, encoder, decoder):
+    tfms = transforms.Compose([
+        transforms.Resize((400, 400)),
+        transforms.ToTensor()
+    ])
+
+    tokenizer = Tokenizer(root_dir)
+    tokenizer.tokenize(os.path.join(root_dir, 'Flicker8k_text/Flickr_8k.trainImages.txt'))
+
+    # create dataset
+    ds = CaptionDataset(root_dir, ds_path, tokenizer, transform=tfms)
+
+    score_list = []
+
+    # get a data item
+    for data, label in ds:
+        # predict on that item
+        candidate_corpus = [predict(encoder, decoder,  tokenizer, data)]
+
+        reference_corpus = [tokenizer.idx2val[i.item()] for i in label]
+        reference_corpus = [" ".join(reference_corpus)]
+
+        
+        # get the bleu score
+        score = bleu_score(candidate_corpus, reference_corpus)
+        score_list.append(score)
+
+    # average the score across all item
+    avg_score = np.mean(score_list)
+    print(f"bleu score is {avg_score}")
+    return avg_score
