@@ -143,7 +143,8 @@ def evaluate(root_dir, ds_path, model_path):
         reference_corpus = [tokenizer.idx2val[i.item()] for i in label]
         reference_corpus = [[reference_corpus]]
 
-        
+        print(candidate_corpus)
+        print(reference_corpus)
         # get the bleu score
         score = bleu_score(candidate_corpus, reference_corpus)
         score_list.append(score)
