@@ -111,7 +111,7 @@ def predict(encoder, decoder,  tokenizer, data):
         inp = decoder.emb(torch.LongTensor([tokenizer.val2idx[pred_token]]).to(device))
     return " ".join(gen_caps)
 
-def evaluate(root_dir, ds_path, encoder, decoder):
+def evaluate(root_dir, ds_path, model_path):
     tfms = transforms.Compose([
         transforms.Resize((400, 400)),
         transforms.ToTensor()
@@ -119,6 +119,13 @@ def evaluate(root_dir, ds_path, encoder, decoder):
 
     tokenizer = Tokenizer(root_dir)
     tokenizer.tokenize(os.path.join(root_dir, 'Flicker8k_text/Flickr_8k.trainImages.txt'))
+
+    # encoder and decoder
+    encoder = Encoder()
+    decoder = Decoder(tokenizer)
+
+    state_dict = torch.load('/content/model1.pt')
+    decoder.load_state_dict(state_dict['decoder_weights'])
 
     # create dataset
     ds = CaptionDataset(root_dir, ds_path, tokenizer, transform=tfms)
