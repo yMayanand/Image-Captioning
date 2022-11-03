@@ -133,7 +133,10 @@ def evaluate(root_dir, ds_path, model_path):
     score_list = []
 
     # get a data item
-    for data, label in tqdm(ds):
+    for i in tqdm(range(len(ds))):
+        # get an item from dataset
+        data, label = ds[i]
+
         # unsqueeze data for fake batch dimension
         data = data.unsqueeze(0)
 
