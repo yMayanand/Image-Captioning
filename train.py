@@ -124,7 +124,7 @@ def evaluate(root_dir, ds_path, model_path):
     encoder = Encoder()
     decoder = Decoder(tokenizer)
 
-    state_dict = torch.load('/content/model1.pt')
+    state_dict = torch.load(model_path)
     decoder.load_state_dict(state_dict['decoder_weights'])
 
     # create dataset
