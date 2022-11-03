@@ -10,7 +10,7 @@ from dataset import CaptionDataset
 from torchvision import transforms
 from torchtext.data.metrics import bleu_score 
 from utils import cust_collate
-from tqdm import tqdm
+from tqdm.notebook import tqdm
 from argparse import ArgumentParser
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -133,7 +133,10 @@ def evaluate(root_dir, ds_path, model_path):
     score_list = []
 
     # get a data item
-    for data, label in ds:
+    for data, label in tqdm(ds):
+        # unsqueeze data for fake batch dimension
+        data = data.unsqueeze(0)
+
         # predict on that item
         candidate_corpus = [predict(encoder, decoder,  tokenizer, data)]
 
