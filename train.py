@@ -13,10 +13,8 @@ from utils import cust_collate
 from tqdm.notebook import tqdm
 from argparse import ArgumentParser
 
-import torch.multiprocessing as mp
-from torch.utils.data.distributed import DistributedSampler
-from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.distributed import init_process_group, destroy_process_group
+from pytorch_lightning as pl
+
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -82,114 +80,103 @@ def train_model():
     plt.plot(loss_store)
     plt.savefig(os.path.join(args.root_dir, 'loss.png'))
 
-def ddp_setup():
-    init_process_group(backend="nccl")
-
-class Trainer:
-    def __init__(
-        self,
-        root_dir,
-        lr,
-        save_every,
-        snapshot_path,
-    ) -> None:
-        self.local_rank = int(os.environ["LOCAL_RANK"])
-        self.global_rank = int(os.environ["RANK"])
-        self.save_every = save_every
-        self.epochs_run = 0
-        self.snapshot_path = snapshot_path
-        if os.path.exists(snapshot_path):
-            print("Loading snapshot")
-            self._load_snapshot(snapshot_path)
-
+class Model(pl.LightningModule):
+    def __init__(self, root_dir):
+        super().__init__()
         tfms = transforms.Compose([
             transforms.Resize((400, 400)),
             transforms.ToTensor()
         ])
 
-        tokenizer = Tokenizer(root_dir)
-        tokenizer.tokenize(os.path.join(root_dir, 'Flicker8k_text/Flickr_8k.trainImages.txt'))
+        self.tokenizer = Tokenizer(root_dir)
+        self.tokenizer.tokenize(os.path.join(root_dir, 'Flicker8k_text/Flickr_8k.trainImages.txt'))
 
-        self.encoder = Encoder().to(device)
-        self.decoder = Decoder(tokenizer).to(device)
+        self.decoder = Decoder(self.tokenizer)
+        self.register_buffer("encoder", Encoder())
 
-        self.decoder = DDP(self.decoder, device_ids=[self.local_rank])
+        self.train_ds = CaptionDataset(root_dir, 'Flicker8k_text/Flickr_8k.trainImages.txt', self.tokenizer, transform=tfms)
+        self.val_ds = CaptionDataset(root_dir, 'Flicker8k_text/Flickr_8k.devImages.txt', self.tokenizer, transform=tfms)
 
-        params = list(self.decoder.parameters())
-        self.optimizer = optim.Adam(params, lr=lr)
+        self.loss_func = CaptionLoss(self.decoder, 0.5, self.tokenizer)
 
-        self.criterion = CaptionLoss(self.decoder, 0.5, tokenizer)
+    def forward(self, x):
+        pass
 
-        train_ds = CaptionDataset(root_dir, 'Flicker8k_text/Flickr_8k.trainImages.txt', tokenizer, transform=tfms)
-        val_ds = CaptionDataset(root_dir, 'Flicker8k_text/Flickr_8k.devImages.txt', tokenizer, transform=tfms)
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
+        return optimizer
 
-        self.train_dl = torch.utils.data.DataLoader(train_ds, batch_size=32, pin_memory=True, shuffle=False, sampler=DistributedSampler(dataset), num_workers=2, collate_fn=cust_collate)
-        val_dl = torch.utils.data.DataLoader(val_ds, batch_size=32, pin_memory=True, num_workers=2, collate_fn=cust_collate)
+    def training_step(self, batch, batch_idx):
+        # training_step defines the train loop.
+        x, y = batch
+        out = self.encoder(x)
+        loss = self.loss_func(out, y)
+        self.log('train_loss', loss.item())
+        return loss
 
-    def _load_snapshot(self, snapshot_path):
-        loc = f"cuda:{self.gpu_id}"
-        snapshot = torch.load(snapshot_path, map_location=loc)
-        self.model.load_state_dict(snapshot["MODEL_STATE"])
-        self.epochs_run = snapshot["EPOCHS_RUN"]
-        print(f"Resuming training from snapshot at Epoch {self.epochs_run}")
+    def validation_step(self, batch, batch_idx):
+        # this is the validation loop
+        x, y = batch
+        out = self.encoder(x)
+        loss = self.loss_func(out, y)
 
-    def _run_batch(self, source, targets):
-        self.optimizer.zero_grad()
-        output = self.encoder(source)
-        loss = self.criterion(output, targets)
-        loss.backward()
-        self.optimizer.step()
-        return loss.item()
+        score_list = []
+        bs, dim = out.shape
+        for  i in range(bs):
+            candidate_corpus = [self.decode_one_sample(out[i]).split()]
+            reference_corpus = [self.tokenizer.idx2val[i.item()] for i in y]
+            reference_corpus = [[reference_corpus]]
 
-    def _run_epoch(self, epoch):
-        b_sz = len(next(iter(self.train_dl))[0])
-        print(f"[GPU{self.global_rank}] Epoch {epoch} | Batchsize: {b_sz} | Steps: {len(self.train_data)}")
-        self.train_dl.sampler.set_epoch(epoch)
-        loss_store = []
-        for source, targets in self.train_dl:
-            source = source.to(self.local_rank)
-            targets = targets.to(self.local_rank)
-            loss = self._run_batch(source, targets)
-            loss_store.append(loss)
-        avg_loss = np.mean(loss_store)
-        print(f"Epoch {epoch} Loss: {avg_loss}")
+            # get the bleu score
+            score = bleu_score(candidate_corpus, reference_corpus)
+            score_list.append(score)
 
-    def _save_snapshot(self, epoch):
-        snapshot = {
-            "MODEL_STATE": self.model.module.state_dict(),
-            "EPOCHS_RUN": epoch,
-        }
-        torch.save(snapshot, self.snapshot_path)
-        print(f"Epoch {epoch} | Training snapshot saved at {self.snapshot_path}")
+            # average the score across all item
+        avg_score = np.mean(score_list)
 
-    def train(self, max_epochs: int):
-        for epoch in range(self.epochs_run, max_epochs):
-            self._run_epoch(epoch)
-            if self.local_rank == 0 and epoch % self.save_every == 0:
-                self._save_snapshot(epoch)
+        self.log('val_bleu_score', avg_score)
+        self.log('val_loss', loss)
+
+    def decode_one_sample(self, im_hid):
+        inp = self.decoder.emb(torch.LongTensor([self.tokenizer.val2idx['START']]).to(self.device))
+        tot = 0
+        seq = 0
+        gen_caps = []
+        self.decoder.init_states(im_hid[0])
+        while True:
+            out, *(self.decoder.hn, self.decoder.cn) = self.decoder(inp, self.decoder.hn, self.decoder.cn)
+            _, idx = torch.max(out, dim=1)
+            pred_token = self.tokenizer.idx2val[idx.item()]
+            gen_caps.append(pred_token)
+            tot += 1
+            if (tot > 25) or (pred_token=='STOP'):
+                break
+            inp = self.decoder.emb(torch.LongTensor([self.tokenizer.val2idx[pred_token]]).to(self.device))
+        return " ".join(gen_caps)
 
 
+    def predict_step():
+        pass
 
-def main(root_dir, lr, save_every, total_epochs, snapshot_path):
-    ddp_setup()
-    trainer = Trainer(root_dir, lr, save_every, snapshot_path)
-    trainer.train(total_epochs)
-    destroy_process_group()
+
+    def val_dataloader(self):
+        loader = torch.utils.data.DataLoader(self.val_ds, batch_size=32, pin_memory=True, num_workers=2, collate_fn=cust_collate)
+        return loader
+
+    def train_dataloader(self):
+        loader = torch.utils.data.DataLoader(self.train_ds, batch_size=32, shuffle=True, pin_memory=True, num_workers=2, collate_fn=cust_collate)
+        return loader
 
 
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument("--root_dir", default="./", type=str, help="root directory path")
     parser.add_argument("--epochs", default=10, type=int, help="num of epochs to train")
-    parser.add_argument("--lr", default=1e-2, type=float, help="learing rate")
-    parser.add_argument("--save_every", default=2, type=int, help="saving snapshot of model every n epochs")
-    parser.add_argument("--snapshot_path", default='snapshot.pt', type=str, help="path to save snapshot")
-
-
 
     args = parser.parse_args()
-
-    main(args.root_dir, args.lr, args.save_every, args.epochs, args.snapshot_path)
+    model = Model(args.root_dir)
+    trainer = pl.Trainer(accelerator='gpu', gpus=1, max_epochs=args.epochs)
+    trainer.fit(model)
 
 #load_from_ckpt(encoder, decoder, './checkpoint/caption.pt')
 
