@@ -92,7 +92,7 @@ class Model(pl.LightningModule):
         self.tokenizer.tokenize(os.path.join(root_dir, 'Flicker8k_text/Flickr_8k.trainImages.txt'))
 
         self.decoder = Decoder(self.tokenizer)
-        self.register_buffer("encoder", Encoder())
+        self.encoder = Encoder()
 
         self.train_ds = CaptionDataset(root_dir, 'Flicker8k_text/Flickr_8k.trainImages.txt', self.tokenizer, transform=tfms)
         self.val_ds = CaptionDataset(root_dir, 'Flicker8k_text/Flickr_8k.devImages.txt', self.tokenizer, transform=tfms)
