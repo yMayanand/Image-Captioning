@@ -13,7 +13,7 @@ from utils import cust_collate
 from tqdm.notebook import tqdm
 from argparse import ArgumentParser
 
-from pytorch_lightning as pl
+import pytorch_lightning as pl
 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
