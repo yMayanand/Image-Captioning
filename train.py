@@ -96,7 +96,7 @@ class Model(pl.LightningModule):
         self.train_ds = CaptionDataset(root_dir, 'Flicker8k_text/Flickr_8k.trainImages.txt', self.tokenizer, transform=tfms)
         self.val_ds = CaptionDataset(root_dir, 'Flicker8k_text/Flickr_8k.devImages.txt', self.tokenizer, transform=tfms)
 
-        self.loss_func = CaptionLoss(0.5, self.tokenizer, self.device)
+        self.loss_func = CaptionLoss(0.5, self.tokenizer)
 
     def forward(self, x):
         pass
@@ -109,7 +109,7 @@ class Model(pl.LightningModule):
         # training_step defines the train loop.
         x, y = batch
         out = self.model.encoder(x)
-        loss = self.loss_func(out, y, self.model.decoder)
+        loss = self.loss_func(out, y, self.model.decoder, self.device)
         self.log('train_loss', loss.item())
         return loss
 
@@ -117,7 +117,7 @@ class Model(pl.LightningModule):
         # this is the validation loop
         x, y = batch
         out = self.model.encoder(x)
-        loss = self.loss_func(out, y, self.model.decoder)
+        loss = self.loss_func(out, y, self.model.decoder, self.device)
 
         score_list = []
         bs, dim = out.shape
