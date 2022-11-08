@@ -42,15 +42,15 @@ class CaptionModel(nn.Module):
         self.encoder = Encoder()
         self.decoder = Decoder(tokenizer)
 
-    def forward(self, x):
+    def forward(self, x, device):
         bs, dim = x.shape
         captions = []
         for  i in range(bs):
-             captions.append(self.decode_one_sample(x[i]))
+             captions.append(self.decode_one_sample(x[i], device))
         return captions
 
-    def decode_one_sample(self, im_hid):
-        inp = self.decoder.emb(torch.LongTensor([self.tokenizer.val2idx['START']]).to(self.device))
+    def decode_one_sample(self, im_hid, device):
+        inp = self.decoder.emb(torch.LongTensor([self.tokenizer.val2idx['START']]).to(device))
         tot = 0
         seq = 0
         gen_caps = []
@@ -63,5 +63,5 @@ class CaptionModel(nn.Module):
             tot += 1
             if (tot > 25) or (pred_token=='STOP'):
                 break
-            inp = self.decoder.emb(torch.LongTensor([self.tokenizer.val2idx[pred_token]]).to(self.device))
+            inp = self.decoder.emb(torch.LongTensor([self.tokenizer.val2idx[pred_token]]).to(device))
         return " ".join(gen_caps)

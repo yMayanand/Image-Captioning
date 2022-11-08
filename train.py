@@ -96,7 +96,7 @@ class Model(pl.LightningModule):
         self.train_ds = CaptionDataset(root_dir, 'Flicker8k_text/Flickr_8k.trainImages.txt', self.tokenizer, transform=tfms)
         self.val_ds = CaptionDataset(root_dir, 'Flicker8k_text/Flickr_8k.devImages.txt', self.tokenizer, transform=tfms)
 
-        self.loss_func = CaptionLoss(0.5, self.tokenizer)
+        self.loss_func = CaptionLoss(0.5, self.tokenizer, self.device)
 
     def forward(self, x):
         pass
@@ -121,7 +121,7 @@ class Model(pl.LightningModule):
 
         score_list = []
         bs, dim = out.shape
-        captions = self.model(out)
+        captions = self.model(out, self.device)
 
         for i, caption in enumerate(captions):
             candidate_corpus = [caption.split()]
