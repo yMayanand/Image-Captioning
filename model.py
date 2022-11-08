@@ -5,14 +5,13 @@ from torchvision import models
 class Encoder(nn.Module):
     def __init__(self):
         super().__init__()
-        backbone = models.resnet50(pretrained=True)
+        backbone = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
         backbone = [module for module in backbone.children()][:-1]
         backbone.append(nn.Flatten())
         self.backbone = nn.Sequential(*backbone)
-        for param in self.backbone.parameters():
-            param.requires_grad = False
+        #for param in self.backbone.parameters():
+        #    param.requires_grad = False
 
-    
     def forward(self, x):
         return self.backbone(x) # size (b, 512)
 
