@@ -96,7 +96,7 @@ class Model(pl.LightningModule):
         self.train_ds = CaptionDataset(root_dir, 'Flicker8k_text/Flickr_8k.trainImages.txt', self.tokenizer, transform=tfms)
         self.val_ds = CaptionDataset(root_dir, 'Flicker8k_text/Flickr_8k.devImages.txt', self.tokenizer, transform=tfms)
 
-        self.loss_func = CaptionLoss(self.decoder, 0.5, self.tokenizer)
+        self.loss_func = CaptionLoss(self.model.decoder, 0.5, self.tokenizer)
 
     def forward(self, x):
         pass
