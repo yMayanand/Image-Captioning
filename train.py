@@ -4,7 +4,7 @@ import numpy as np
 import torch.optim as optim
 import matplotlib.pyplot as plt
 from loss import CaptionLoss
-from model import Encoder, Decoder
+from model import Encoder, Decoder, CaptionModel
 from preprocess import Tokenizer
 from dataset import CaptionDataset
 from torchvision import transforms
@@ -91,8 +91,7 @@ class Model(pl.LightningModule):
         self.tokenizer = Tokenizer(root_dir)
         self.tokenizer.tokenize(os.path.join(root_dir, 'Flicker8k_text/Flickr_8k.trainImages.txt'))
 
-        self.decoder = Decoder(self.tokenizer)
-        self.encoder = Encoder()
+        self.model = CaptionModel(self.tokenizer)
 
         self.train_ds = CaptionDataset(root_dir, 'Flicker8k_text/Flickr_8k.trainImages.txt', self.tokenizer, transform=tfms)
         self.val_ds = CaptionDataset(root_dir, 'Flicker8k_text/Flickr_8k.devImages.txt', self.tokenizer, transform=tfms)
@@ -109,7 +108,7 @@ class Model(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         # training_step defines the train loop.
         x, y = batch
-        out = self.encoder(x)
+        out = self.model.encoder(x)
         loss = self.loss_func(out, y)
         self.log('train_loss', loss.item())
         return loss
@@ -117,14 +116,16 @@ class Model(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         # this is the validation loop
         x, y = batch
-        out = self.encoder(x)
-        loss = self.loss_func(out, y)
+        out = self.model.encoder(x)
+        loss = self.loss_func(out, y, self.model.decoder)
 
         score_list = []
         bs, dim = out.shape
-        for  i in range(bs):
-            candidate_corpus = [self.decode_one_sample(out[i]).split()]
-            reference_corpus = [self.tokenizer.idx2val[i.item()] for i in y]
+        captions = self.model(out)
+
+        for i, caption in enumerate(captions):
+            candidate_corpus = [caption.split()]
+            reference_corpus = [self.tokenizer.idx2val[j.item()] for j in y[i]]
             reference_corpus = [[reference_corpus]]
 
             # get the bleu score
@@ -137,28 +138,13 @@ class Model(pl.LightningModule):
         self.log('val_bleu_score', avg_score)
         self.log('val_loss', loss)
 
-    def decode_one_sample(self, im_hid):
-        inp = self.decoder.emb(torch.LongTensor([self.tokenizer.val2idx['START']]).to(self.device))
-        tot = 0
-        seq = 0
-        gen_caps = []
-        self.decoder.init_states(im_hid[0])
-        while True:
-            out, *(self.decoder.hn, self.decoder.cn) = self.decoder(inp, self.decoder.hn, self.decoder.cn)
-            _, idx = torch.max(out, dim=1)
-            pred_token = self.tokenizer.idx2val[idx.item()]
-            gen_caps.append(pred_token)
-            tot += 1
-            if (tot > 25) or (pred_token=='STOP'):
-                break
-            inp = self.decoder.emb(torch.LongTensor([self.tokenizer.val2idx[pred_token]]).to(self.device))
-        return " ".join(gen_caps)
-
-
-    def predict_step():
-        pass
-
-
+    def predict_step(self, batch, batch_idx):
+        # this is the prediction loop
+        x, y = batch
+        out = self.model.encoder(x)
+        captions = self.model(out)
+        return captions
+        
     def val_dataloader(self):
         loader = torch.utils.data.DataLoader(self.val_ds, batch_size=32, pin_memory=True, num_workers=2, collate_fn=cust_collate)
         return loader
@@ -208,47 +194,3 @@ def predict(encoder, decoder,  tokenizer, data):
             break
         inp = decoder.emb(torch.LongTensor([tokenizer.val2idx[pred_token]]).to(device))
     return " ".join(gen_caps)
-
-def evaluate(root_dir, ds_path, model_path):
-    tfms = transforms.Compose([
-        transforms.Resize((400, 400)),
-        transforms.ToTensor()
-    ])
-
-    tokenizer = Tokenizer(root_dir)
-    tokenizer.tokenize(os.path.join(root_dir, 'Flicker8k_text/Flickr_8k.trainImages.txt'))
-
-    # encoder and decoder
-    encoder = Encoder()
-    decoder = Decoder(tokenizer)
-
-    state_dict = torch.load(model_path)
-    decoder.load_state_dict(state_dict['decoder_weights'])
-
-    # create dataset
-    ds = CaptionDataset(root_dir, ds_path, tokenizer, transform=tfms)
-
-    score_list = []
-
-    # get a data item
-    for i in tqdm(range(len(ds))):
-        # get an item from dataset
-        data, label = ds[i]
-
-        # unsqueeze data for fake batch dimension
-        data = data.unsqueeze(0)
-
-        # predict on that item
-        candidate_corpus = [predict(encoder, decoder,  tokenizer, data).split()]
-
-        reference_corpus = [tokenizer.idx2val[i.item()] for i in label]
-        reference_corpus = [[reference_corpus]]
-
-        # get the bleu score
-        score = bleu_score(candidate_corpus, reference_corpus)
-        score_list.append(score)
-
-    # average the score across all item
-    avg_score = np.mean(score_list)
-    print(f"bleu score is {avg_score}")
-    return avg_score
