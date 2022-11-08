@@ -142,7 +142,7 @@ class Model(pl.LightningModule):
         # this is the prediction loop
         x, y = batch
         out = self.model.encoder(x)
-        captions = self.model(out)
+        captions = self.model(out, self.device)
         return captions
         
     def val_dataloader(self):
