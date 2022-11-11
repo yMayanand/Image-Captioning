@@ -1,14 +1,19 @@
 import os
+import random
+
+import pandas as pd
 import torch
 from PIL import Image
-import pandas as pd
+
 from preprocess import read_file
 
+
 class CaptionDataset(torch.utils.data.Dataset):
-    def __init__(self, root, fname, tokenizer, transform=None):
+    def __init__(self, root, fname, tokenizer, mode='train', transform=None):
         fname = os.path.join(root, fname)
         self.root = root
         self.tfms = transform
+        self.mode = mode
         super().__init__()
         temp = read_file(fname)
         self.df = pd.DataFrame(temp, columns=['id'])
@@ -19,9 +24,27 @@ class CaptionDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         image_path = self.df['id'][idx]
-        caption = self.tokenizer.caption_df[self.tokenizer.caption_df['id']==image_path].reset_index(drop=True)['caption'][0].lower().strip().split()
-        caption = [self.tokenizer.val2idx[i] for i in caption]
+        caption = self.tokenizer.caption_df[self.tokenizer.caption_df['id']==image_path].reset_index(drop=True)['caption'] # [0].lower().strip().split()
         image = Image.open(os.path.join(self.root, 'Flicker8k_Dataset', image_path))
         if self.tfms:
             image = self.tfms(image)
-        return image, torch.tensor(caption)
+
+        if self.mode == 'train':
+            captions = random.choice(caption)
+            captions = captions.lower().strip().split()
+            captions.insert(0, '<start>')
+            captions.append('<end>')
+            captions = [self.tokenizer.val2idx[i] for i in captions]
+            captions = torch.LongTensor(captions)
+            caplens = torch.LongTensor([len(captions)])
+
+        else:
+            captions = caption.tolist()
+            for i, c in enumerate(captions):
+                temp = c.lower().strip().split()
+                temp.insert(0, '<start>')
+                temp.append('<end>')
+                captions[i] = temp
+                caplens = len(captions)
+
+        return image, captions, caplens

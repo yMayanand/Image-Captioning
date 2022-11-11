@@ -8,7 +8,7 @@ class CaptionLoss(nn.Module):
         self.teacher_forcing = teacher_forcing
         self.tokenizer = tokenizer
 
-    def forward(self, x, labels, decoder, device):
+    def forward(self, x, labels, lens, decoder, device):
         loss = 0.
         criterion = nn.CrossEntropyLoss()
         batch_size = x.shape[0]
@@ -16,6 +16,9 @@ class CaptionLoss(nn.Module):
             inp = decoder.emb(torch.LongTensor([self.tokenizer.val2idx['START']]).to(device)) # start token
             
             decoder.init_states(x[i])
+            # TODO: modify this part to do according to timestep
+            tot_timesteps = max(lens)
+            
             for label in labels[i]:
                 label = label.unsqueeze(0).to(device)
                 out, *(decoder.hn, decoder.cn) = decoder(inp, decoder.hn, decoder.cn)
@@ -26,6 +29,10 @@ class CaptionLoss(nn.Module):
                 else:
                     inp = decoder.emb(label)
                 loss += criterion(out, label)
+            
+            for i in tot_timesteps:
+                
+
             label = torch.LongTensor([self.tokenizer.val2idx['STOP']]).to(device) # stop token
             out, *(decoder.hn, decoder.cn) = decoder(inp, decoder.hn, decoder.cn)
             loss += criterion(out, label)

@@ -5,7 +5,8 @@ from torchvision import models
 class Encoder(nn.Module):
     def __init__(self):
         super().__init__()
-        backbone = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
+        #backbone = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
+        backbone = models.resnet50()
         backbone = [module for module in backbone.children()][:-1]
         backbone.append(nn.Flatten())
         self.backbone = nn.Sequential(*backbone)
@@ -17,50 +18,61 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, tokenizer):
+    def __init__(self, tokenizer, dropout=0.5):
         super().__init__()
-        self.emb = nn.Embedding(len(tokenizer.vocab), 512) # size (b, 512)
-        self.lstm1 = nn.LSTMCell(512, 512) 
+        self.vocab_size = len(tokenizer)
+        self.emb = nn.Embedding(self.vocab_size, 512) # size (b, 512)
+        self.lstm = nn.LSTMCell(512, 512) 
+        self.dropout = nn.Dropout(p=dropout)
         self.fc = nn.Linear(512, len(tokenizer.vocab))
         self.init_h = nn.Linear(2048, 512)
         self.init_c = nn.Linear(2048, 512)
     
     def init_states(self, encoder_out):
-        self.hn = self.init_h(encoder_out).unsqueeze(0)
-        self.cn = self.init_c(encoder_out).unsqueeze(0)
+        h = self.init_h(encoder_out)
+        c = self.init_c(encoder_out)
+        return h, c
 
-    def forward(self, inp, hidden, cell_state):
-        hidden, cell_state = self.lstm1(inp, (hidden, cell_state)) # size (b, 512)
-        out = self.fc(hidden)
-        return out, hidden, cell_state
+    def forward(self, im_hid, captions, caplens, device):
+        batch_size, encoder_dim = im_hid.shape
+        gen_caps = []
+        caplens, sort_idx = caplens.squeeze(1).sort(dim=0, descending=True)
+        sort_idx = sort_idx[::-1].tolist()
+        im_hid = im_hid[sort_idx]
+        captions = captions[sort_idx]
+        h, c = self.init_states(im_hid)
+
+        # Embedding
+        embeddings = self.embedding(captions)  # (batch_size, max_caption_length, embed_dim)
+
+
+        # We won't decode at the <end> position, since we've finished generating as soon as we generate <end>
+        # So, decoding lengths are actual lengths - 1
+        caplens = (caplens - 1).tolist()
+
+
+        # Create tensors to hold word predicion scores
+        predictions = torch.zeros(batch_size, max(caplens), self.vocab_size).to(device)
+
+        max_timesteps = max(caplens)
+
+        for t in range(max_timesteps):
+            batch_size_t = sum([l > t for l in caplens])
+            h, c = self.lstm(embeddings[:batch_size_t, t, :], (h[:batch_size_t], c[:batch_size_t]))
+            preds = self.fc(self.dropout(h))
+            predictions[:batch_size_t, t, :] = preds
+        
+        return  predictions, captions, caplens, sort_idx
 
 class CaptionModel(nn.Module):
     def __init__(self, tokenizer):
         super().__init__()
         self.tokenizer = tokenizer
+        self.vocab_size = len(self.tokenizer)
         self.encoder = Encoder()
         self.decoder = Decoder(tokenizer)
 
-    def forward(self, x, device):
-        bs, dim = x.shape
-        captions = []
-        for  i in range(bs):
-             captions.append(self.decode_one_sample(x[i], device))
-        return captions
-
-    def decode_one_sample(self, im_hid, device):
-        inp = self.decoder.emb(torch.LongTensor([self.tokenizer.val2idx['START']]).to(device))
-        tot = 0
-        seq = 0
-        gen_caps = []
-        self.decoder.init_states(im_hid)
-        while True:
-            out, *(self.decoder.hn, self.decoder.cn) = self.decoder(inp, self.decoder.hn, self.decoder.cn)
-            _, idx = torch.max(out, dim=1)
-            pred_token = self.tokenizer.idx2val[idx.item()]
-            gen_caps.append(pred_token)
-            tot += 1
-            if (tot > 25) or (pred_token=='STOP'):
-                break
-            inp = self.decoder.emb(torch.LongTensor([self.tokenizer.val2idx[pred_token]]).to(device))
-        return " ".join(gen_caps)
+    def forward(self, x, captions, caplens, device):
+        encoder_out = self.encoder(x)
+        predictions, captions, caplens, sort_idx = self.decoder(encoder_out, captions, caplens, device)
+        return predictions, captions, caplens, sort_idx

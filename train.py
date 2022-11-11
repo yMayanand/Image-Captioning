@@ -1,4 +1,3 @@
-import os
 import torch
 import numpy as np
 import torch.optim as optim
@@ -12,24 +11,29 @@ from torchtext.data.metrics import bleu_score
 from utils import cust_collate
 from tqdm.notebook import tqdm
 from argparse import ArgumentParser
-
+import os
 import pytorch_lightning as pl
 
 class Model(pl.LightningModule):
     def __init__(self, root_dir):
         super().__init__()
-        tfms = transforms.Compose([
+        train_tfms = transforms.Compose([
+            transforms.Resize((400, 400)),
+            transforms.ToTensor()
+        ])
+
+        val_tfms = transforms.Compose([
             transforms.Resize((400, 400)),
             transforms.ToTensor()
         ])
 
         self.tokenizer = Tokenizer(root_dir)
-        self.tokenizer.tokenize(os.path.join(root_dir, 'Flicker8k_text/Flickr_8k.trainImages.txt'))
+        self.tokenizer.tokenize( 'Flicker8k_text/Flickr_8k.trainImages.txt')
 
         self.model = CaptionModel(self.tokenizer)
 
-        self.train_ds = CaptionDataset(root_dir, 'Flicker8k_text/Flickr_8k.trainImages.txt', self.tokenizer, transform=tfms)
-        self.val_ds = CaptionDataset(root_dir, 'Flicker8k_text/Flickr_8k.devImages.txt', self.tokenizer, transform=tfms)
+        self.train_ds = CaptionDataset(root_dir, 'Flicker8k_text/Flickr_8k.trainImages.txt', self.tokenizer, transform=train_tfms)
+        self.val_ds = CaptionDataset(root_dir, 'Flicker8k_text/Flickr_8k.devImages.txt', self.tokenizer, transform=val_tfms)
 
         self.loss_func = CaptionLoss(0.5, self.tokenizer)
 

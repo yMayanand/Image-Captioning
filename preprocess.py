@@ -1,7 +1,9 @@
 import os
-import pandas as pd
+import pickle
+from collections import defaultdict, Counter
 from pathlib import Path
-from collections import defaultdict
+
+import pandas as pd
 
 # TODO: Remove this function
 
@@ -26,6 +28,9 @@ def read_file(fname):
             lines.append(line.strip())
     return lines
 
+# function to return 2
+def return2():
+    return 2
 
 class Tokenizer:
     """Tokenizer class for tokenizing captions in the Flicker8k dataset.
@@ -38,10 +43,10 @@ class Tokenizer:
     """
 
     def __init__(self, root):
-        self.vocab = ['START', 'STOP', 'UNK']
+        self.vocab = ['<start>', '<end>', '<unk>', '<pad>']
         self.count = 2
         self.idx2val = {}
-        self.val2idx = {'START': 0, 'STOP': 1, 'UNK': 2}
+        self.val2idx = {'<start>': 0, '<end>': 1, '<unk>': 2, '<pad>': 3}
         self.root = root
 
         with open(os.path.join(root, 'Flicker8k_text/Flickr8k.token.txt'), 'r') as f:
@@ -63,13 +68,33 @@ class Tokenizer:
                 self.val2idx.update({i: self.count})
 
     def tokenize(self, fname):
+        print(f'tokenizing file {fname}...')
         temp = read_file(os.path.join(self.root, fname))
         df = pd.DataFrame(temp, columns=['id'])
         for i in df['id']:
-            caption = self.caption_df[self.caption_df['id'] == i].reset_index(drop=True)['caption'][0]
-            self.add(caption)
+            captions = self.caption_df[self.caption_df['id'] == i].reset_index(drop=True)['caption']
+            for caption in captions:
+                self.add(caption)
+
         self.complete()
 
     def complete(self):
         self.idx2val = {key: value for value, key in self.val2idx.items()}
-        self.val2idx = defaultdict(lambda: 2, self.val2idx)
+        self.val2idx = defaultdict(return2, self.val2idx)
+
+    def pickle_tokenizer(self, fname):
+        print(f"saving to file {fname}")
+        with open(fname, 'wb') as f:
+            state_dict = {'idx2val': self.idx2val, 'val2idx': self.val2idx, 'vocab': self.vocab}
+            pickle.dump(state_dict, f)
+
+    def load_tokenizer(self, fname):
+        print(f"loading from file {fname}...")
+        with open(fname, 'rb') as f:
+            state_dict = pickle.load(f)
+            self.vocab = state_dict['vocab']
+            self.val2idx = state_dict['val2idx']
+            self.idx2val = state_dict['idx2val']
+
+    def __len__(self):
+        return len(self.vocab)

@@ -1,4 +1,5 @@
 import torch
+from torch.nn.utils.rnn import pad_sequence
 
 def decode_caption(idx):
     temp = []
@@ -8,6 +9,8 @@ def decode_caption(idx):
     return ' '.join(temp)
 
 def cust_collate(batch):
-    xs, ys = list(zip(*batch))
+    xs, ys, zs = list(zip(*batch))
     xs = torch.stack(xs)
-    return xs, ys
+    ys = pad_sequence(ys,batch_first=True, padding_value=3)
+    zs = torch.stack(zs)
+    return xs, ys, zs
