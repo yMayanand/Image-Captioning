@@ -11,6 +11,6 @@ def decode_caption(idx):
 def cust_collate(batch):
     xs, ys, zs = list(zip(*batch))
     xs = torch.stack(xs)
-    ys = pad_sequence(ys,batch_first=True, padding_value=3)
+    ys = pad_sequence(ys, batch_first=True, padding_value=3)
     zs = torch.stack(zs)
     return xs, ys, zs

@@ -44,7 +44,7 @@ class Tokenizer:
 
     def __init__(self, root):
         self.vocab = ['<start>', '<end>', '<unk>', '<pad>']
-        self.count = 2
+        self.count = 3
         self.idx2val = {}
         self.val2idx = {'<start>': 0, '<end>': 1, '<unk>': 2, '<pad>': 3}
         self.root = root
