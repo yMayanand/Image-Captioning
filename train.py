@@ -66,7 +66,7 @@ class Model(pl.LightningModule):
         targets = pack_padded_sequence(targets, caplens, batch_first=True)
 
         loss = self.loss_func(scores.data, targets.data)
-        self.log('train_loss', loss.item())
+        self.log('train_loss', loss)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -102,10 +102,10 @@ class Model(pl.LightningModule):
         captions = self.model(out, self.device)
         return captions
 
-    def val_dataloader(self):
+    """def val_dataloader(self):
         loader = torch.utils.data.DataLoader(
             self.val_ds, batch_size=32, pin_memory=True, num_workers=2, collate_fn=cust_collate)
-        return loader
+        return loader"""
 
     def train_dataloader(self):
         loader = torch.utils.data.DataLoader(

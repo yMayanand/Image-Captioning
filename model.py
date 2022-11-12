@@ -5,16 +5,18 @@ from torchvision import models
 class Encoder(nn.Module):
     def __init__(self):
         super().__init__()
-        #backbone = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
-        backbone = models.resnet50()
+        backbone = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
         backbone = [module for module in backbone.children()][:-1]
         backbone.append(nn.Flatten())
         self.backbone = nn.Sequential(*backbone)
-        #for param in self.backbone.parameters():
-        #    param.requires_grad = False
+     
 
     def forward(self, x):
-        return self.backbone(x) # size (b, 512)
+        return self.backbone(x)
+    
+    def fine_tune(self, fine_tune=False):
+        for param in self.parameters():
+            param.requires_grad = fine_tune
 
 
 class Decoder(nn.Module):
@@ -77,12 +79,16 @@ class Decoder(nn.Module):
             step = 1
             while True:
                 h_, c_ = self.lstm(next_token, (h_, c_))
-                preds = self.fc(self.dropout(h))
+                preds = self.fc(self.dropout(h_))
 
                 max_val, max_idx = torch.max(preds, dim=1)
+                max_idx = max_idx.item()
                 temp.append(max_idx)
+                
                 if max_idx in [self.tokenizer.val2idx['<end>']] or step == max_steps:
                     break
+                next_token = self.emb(torch.LongTensor([max_idx]).to(device))
+                step += 1
             captions.append(temp)
         
         return  captions
