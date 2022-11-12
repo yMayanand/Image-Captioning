@@ -77,6 +77,9 @@ class Model(pl.LightningModule):
         # this is the validation loop
         x, y, z = batch
         captions = self.model.predict(x, self.device)
+        for i in range(len(captions)):
+            captions[i] = [self.tokenizer.idx2val[j] for j in captions[i]]
+
         bleu4 = bleu_score(captions, y)
 
         self.log('val_bleu_score', bleu4)
