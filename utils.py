@@ -8,9 +8,14 @@ def decode_caption(idx):
         temp.append(temp1)
     return ' '.join(temp)
 
-def cust_collate(batch):
+def train_collate(batch):
     xs, ys, zs = list(zip(*batch))
     xs = torch.stack(xs)
     ys = pad_sequence(ys, batch_first=True, padding_value=3)
     zs = torch.stack(zs)
+    return xs, ys, zs
+
+def val_collate(batch):
+    xs, ys, zs = list(zip(*batch))
+    xs = torch.stack(xs)
     return xs, ys, zs

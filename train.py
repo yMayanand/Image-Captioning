@@ -12,7 +12,7 @@ from torchvision import transforms
 from dataset import CaptionDataset
 from model import CaptionModel
 from preprocess import Tokenizer
-from utils import cust_collate
+from utils import train_collate, val_collate
 
 
 class Model(pl.LightningModule):
@@ -75,29 +75,12 @@ class Model(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         # this is the validation loop
-        x, y = batch
-        out = self.model.encoder(x)
-        loss = self.loss_func(out, y, self.model.decoder, self.device)
+        x, y, z = batch
+        captions = self.model.predict(x, self.device)
+        bleu4 = bleu_score(captions, y)
 
-        # measuring bleu score
-        score_list = []
-        bs, dim = out.shape
-        captions = self.model(out, self.device)
-
-        for i, caption in enumerate(captions):
-            candidate_corpus = [caption.split()]
-            reference_corpus = [self.tokenizer.idx2val[j.item()] for j in y[i]]
-            reference_corpus = [[reference_corpus]]
-
-            # get the bleu score
-            score = bleu_score(candidate_corpus, reference_corpus)
-            score_list.append(score)
-
-            # average the score across all item
-        avg_score = np.mean(score_list)
-
-        self.log('val_bleu_score', avg_score)
-        self.log('val_loss', loss)
+        self.log('val_bleu_score', bleu4)
+        
 
     def predict_step(self, batch, batch_idx):
         # this is the prediction loop
@@ -106,14 +89,14 @@ class Model(pl.LightningModule):
         captions = self.model(out, self.device)
         return captions
 
-    """def val_dataloader(self):
+    def val_dataloader(self):
         loader = torch.utils.data.DataLoader(
-            self.val_ds, batch_size=32, pin_memory=True, num_workers=2, collate_fn=cust_collate)
-        return loader"""
+            self.val_ds, batch_size=32, pin_memory=True, num_workers=2, collate_fn=val_collate)
+        return loader
 
     def train_dataloader(self):
         loader = torch.utils.data.DataLoader(
-            self.train_ds, batch_size=32, shuffle=True, pin_memory=True, num_workers=2, collate_fn=cust_collate)
+            self.train_ds, batch_size=32, shuffle=True, pin_memory=True, num_workers=2, collate_fn=train_collate)
         return loader
 
 

@@ -20,7 +20,7 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, tokenizer, dropout=0.5):
+    def __init__(self, tokenizer, teacher_forcing=0.5, dropout=0.5):
         super().__init__()
         self.tokenizer = tokenizer
         self.vocab_size = len(tokenizer)
@@ -66,31 +66,31 @@ class Decoder(nn.Module):
         return  predictions, captions, caplens, sort_idx
 
     def predict(self, enc_out, device, max_steps):
-        batch_size = enc_out.shape[0]
-        h, c = self.init_states(enc_out)
+        with torch.no_grad():
+            batch_size = enc_out.shape[0]
+            h, c = self.init_states(enc_out)
 
-        captions = []
+            captions = []
 
-        for i in range(batch_size):
-            temp = []
-            next_token = self.emb(torch.LongTensor([self.tokenizer.val2idx['<start>']]).to(device))
-            h_, c_ = h[i].unsqueeze(0), c[i].unsqueeze(0)
+            for i in range(batch_size):
+                temp = []
+                next_token = self.emb(torch.LongTensor([self.tokenizer.val2idx['<start>']]).to(device))
+                h_, c_ = h[i].unsqueeze(0), c[i].unsqueeze(0)
 
-            step = 1
-            while True:
-                h_, c_ = self.lstm(next_token, (h_, c_))
-                preds = self.fc(self.dropout(h_))
+                step = 1
+                while True:
+                    h_, c_ = self.lstm(next_token, (h_, c_))
+                    preds = self.fc(self.dropout(h_))
 
-                max_val, max_idx = torch.max(preds, dim=1)
-                max_idx = max_idx.item()
-                temp.append(max_idx)
-                
-                if max_idx in [self.tokenizer.val2idx['<end>']] or step == max_steps:
-                    break
-                next_token = self.emb(torch.LongTensor([max_idx]).to(device))
-                step += 1
-            captions.append(temp)
-        
+                    max_val, max_idx = torch.max(preds, dim=1)
+                    max_idx = max_idx.item()
+                    temp.append(max_idx)
+                    
+                    if max_idx in [self.tokenizer.val2idx['<end>']] or step == max_steps:
+                        break
+                    next_token = self.emb(torch.LongTensor([max_idx]).to(device))
+                    step += 1
+                captions.append(temp)
         return  captions
 
     

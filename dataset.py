@@ -42,9 +42,8 @@ class CaptionDataset(torch.utils.data.Dataset):
             captions = caption.tolist()
             for i, c in enumerate(captions):
                 temp = c.lower().strip().split()
-                temp.insert(0, '<start>')
                 temp.append('<end>')
-                captions[i] = temp
+                captions[i] = [self.tokenizer.val2idx[i] for i in temp]
                 caplens = len(captions)
 
         return image, captions, caplens
