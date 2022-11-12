@@ -40,7 +40,7 @@ class Model(pl.LightningModule):
         self.train_ds = CaptionDataset(
             root_dir, 'Flicker8k_text/Flickr_8k.trainImages.txt', self.tokenizer, transform=train_tfms)
         self.val_ds = CaptionDataset(
-            root_dir, 'Flicker8k_text/Flickr_8k.devImages.txt', self.tokenizer, transform=val_tfms)
+            root_dir, 'Flicker8k_text/Flickr_8k.devImages.txt',  self.tokenizer, mode='val', transform=val_tfms)
 
         self.loss_func = nn.CrossEntropyLoss()
 
@@ -91,7 +91,7 @@ class Model(pl.LightningModule):
 
     def val_dataloader(self):
         loader = torch.utils.data.DataLoader(
-            self.val_ds, batch_size=32, pin_memory=True, num_workers=2, collate_fn=val_collate)
+            self.val_ds, batch_size=32,  num_workers=2, pin_memory=True, collate_fn=val_collate)
         return loader
 
     def train_dataloader(self):
