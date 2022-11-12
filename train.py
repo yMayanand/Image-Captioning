@@ -1,18 +1,19 @@
-import torch
-import numpy as np
-import torch.optim as optim
-import matplotlib.pyplot as plt
-from loss import CaptionLoss
-from model import Encoder, Decoder, CaptionModel
-from preprocess import Tokenizer
-from dataset import CaptionDataset
-from torchvision import transforms
-from torchtext.data.metrics import bleu_score 
-from utils import cust_collate
-from tqdm.notebook import tqdm
 from argparse import ArgumentParser
-import os
+
+import numpy as np
 import pytorch_lightning as pl
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.nn.utils.rnn import pack_padded_sequence
+from torchtext.data.metrics import bleu_score
+from torchvision import transforms
+
+from dataset import CaptionDataset
+from model import CaptionModel
+from preprocess import Tokenizer
+from utils import cust_collate
+
 
 class Model(pl.LightningModule):
     def __init__(self, root_dir):
@@ -28,14 +29,16 @@ class Model(pl.LightningModule):
         ])
 
         self.tokenizer = Tokenizer(root_dir)
-        self.tokenizer.tokenize( 'Flicker8k_text/Flickr_8k.trainImages.txt')
+        self.tokenizer.tokenize('Flicker8k_text/Flickr_8k.trainImages.txt')
 
         self.model = CaptionModel(self.tokenizer)
 
-        self.train_ds = CaptionDataset(root_dir, 'Flicker8k_text/Flickr_8k.trainImages.txt', self.tokenizer, transform=train_tfms)
-        self.val_ds = CaptionDataset(root_dir, 'Flicker8k_text/Flickr_8k.devImages.txt', self.tokenizer, transform=val_tfms)
+        self.train_ds = CaptionDataset(
+            root_dir, 'Flicker8k_text/Flickr_8k.trainImages.txt', self.tokenizer, transform=train_tfms)
+        self.val_ds = CaptionDataset(
+            root_dir, 'Flicker8k_text/Flickr_8k.devImages.txt', self.tokenizer, transform=val_tfms)
 
-        self.loss_func = CaptionLoss(0.5, self.tokenizer)
+        self.loss_func = nn.CrossEntropyLoss()
 
     def forward(self, x):
         pass
@@ -45,14 +48,24 @@ class Model(pl.LightningModule):
             {'params': self.model.encoder.parameters(), 'lr': 1e-5},
             {'params': self.model.decoder.parameters(), 'lr': 1e-3}
         ]
-        optimizer = torch.optim.Adam(param_groups, lr=1e-3)
+        optimizer = optim.Adam(param_groups, lr=1e-3)
         return optimizer
 
     def training_step(self, batch, batch_idx):
         # training_step defines the train loop.
-        x, y = batch
-        out = self.model.encoder(x)
-        loss = self.loss_func(out, y, self.model.decoder, self.device)
+        x, captions, caplens = batch
+        predictions, captions, caplens, sort_idx = self.model(
+            x, captions, caplens, self.device)
+
+        # Since we decoded starting with <start>, the targets are all words after <start>, up to <end>
+        targets = captions[:, 1:]
+
+        # Remove timesteps that we didn't decode at, or are pads
+        # pack_padded_sequence is an easy trick to do this
+        scores = pack_padded_sequence(predictions, caplens, batch_first=True)
+        targets = pack_padded_sequence(targets, caplens, batch_first=True)
+
+        loss = self.loss_func(scores.data, targets.data)
         self.log('train_loss', loss.item())
         return loss
 
@@ -88,19 +101,24 @@ class Model(pl.LightningModule):
         out = self.model.encoder(x)
         captions = self.model(out, self.device)
         return captions
-        
+
     def val_dataloader(self):
-        loader = torch.utils.data.DataLoader(self.val_ds, batch_size=32, pin_memory=True, num_workers=2, collate_fn=cust_collate)
+        loader = torch.utils.data.DataLoader(
+            self.val_ds, batch_size=32, pin_memory=True, num_workers=2, collate_fn=cust_collate)
         return loader
 
     def train_dataloader(self):
-        loader = torch.utils.data.DataLoader(self.train_ds, batch_size=32, shuffle=True, pin_memory=True, num_workers=2, collate_fn=cust_collate)
+        loader = torch.utils.data.DataLoader(
+            self.train_ds, batch_size=32, shuffle=True, pin_memory=True, num_workers=2, collate_fn=cust_collate)
         return loader
+
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument("--root_dir", default="./", type=str, help="root directory path")
-    parser.add_argument("--epochs", default=10, type=int, help="num of epochs to train")
+    parser.add_argument("--root_dir", default="./",
+                        type=str, help="root directory path")
+    parser.add_argument("--epochs", default=10, type=int,
+                        help="num of epochs to train")
 
     args = parser.parse_args()
     model = Model(args.root_dir)
