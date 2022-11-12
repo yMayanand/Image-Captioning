@@ -16,7 +16,7 @@ from utils import cust_collate
 
 
 class Model(pl.LightningModule):
-    def __init__(self, root_dir):
+    def __init__(self, root_dir, tokenizer_path):
         super().__init__()
         train_tfms = transforms.Compose([
             transforms.Resize((400, 400)),
@@ -29,7 +29,11 @@ class Model(pl.LightningModule):
         ])
 
         self.tokenizer = Tokenizer(root_dir)
-        self.tokenizer.tokenize('Flicker8k_text/Flickr_8k.trainImages.txt')
+        if tokenizer_path is not None:
+            self.tokenizer.load_tokenizer(tokenizer_path)
+        else:
+            self.tokenizer.tokenize('Flicker8k_text/Flickr_8k.trainImages.txt')
+        
 
         self.model = CaptionModel(self.tokenizer)
 
@@ -119,8 +123,10 @@ if __name__ == '__main__':
                         type=str, help="root directory path")
     parser.add_argument("--epochs", default=10, type=int,
                         help="num of epochs to train")
+    parser.add_argument("--tokenizer_path", default=None, type=str,
+                        help="path to saved tokenizer")
 
     args = parser.parse_args()
-    model = Model(args.root_dir)
+    model = Model(args.root_dir, args.tokenizer_path)
     trainer = pl.Trainer(accelerator='gpu', devices=1, max_epochs=args.epochs)
     trainer.fit(model)

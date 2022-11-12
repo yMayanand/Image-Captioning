@@ -73,7 +73,7 @@ class Decoder(nn.Module):
 
         for i in range(batch_size):
             temp = []
-            next_token = self.emb(torch.LongTensor(self.tokenizer.val2idx['<start>']).to(device))
+            next_token = self.emb(torch.LongTensor([self.tokenizer.val2idx['<start>']]).to(device))
             h_, c_ = h[i].unsqueeze(0), c[i].unsqueeze(0)
 
             step = 1
