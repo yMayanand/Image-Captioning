@@ -31,7 +31,8 @@ class Model(pl.LightningModule):
             ])
 
         val_tfms = transforms.Compose([
-            transforms.Resize(400),
+            transforms.Resize(410),                          # smaller edge of image resized to 256
+            transforms.RandomCrop(400),
             transforms.ToTensor(),
             transforms.Normalize((0.485, 0.456, 0.406),      # normalize image for pre-trained model
                                  (0.229, 0.224, 0.225))
