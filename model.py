@@ -16,8 +16,12 @@ class Encoder(nn.Module):
     
     def fine_tune(self, fine_tune=False):
         for param in self.parameters():
-            param.requires_grad = fine_tune
+            param.requires_grad = False
 
+        # If fine-tuning, only fine-tune bottom layers
+        for c in list(self.backbone.children())[5:]:
+            for p in c.parameters():
+                p.requires_grad = fine_tune
 
 class Decoder(nn.Module):
     def __init__(self, tokenizer, teacher_forcing=0.5, dropout=0.5):

@@ -1,7 +1,9 @@
 from argparse import ArgumentParser
 
+import math
 import numpy as np
 import pytorch_lightning as pl
+from pytorch_lightning.callbacks import DeviceStatsMonitor 
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -16,16 +18,23 @@ from utils import train_collate, val_collate
 
 
 class Model(pl.LightningModule):
-    def __init__(self, root_dir, tokenizer_path):
+    def __init__(self, root_dir, tokenizer_path, fine_tune):
         super().__init__()
+        
         train_tfms = transforms.Compose([
-            transforms.Resize((400, 400)),
-            transforms.ToTensor()
-        ])
+            transforms.Resize(410),                          # smaller edge of image resized to 256
+            transforms.RandomCrop(400),                      # get 224x224 crop from random location
+            transforms.RandomHorizontalFlip(),               # horizontally flip image with probability=0.5
+            transforms.ToTensor(),                           # convert the PIL Image to a tensor
+            transforms.Normalize((0.485, 0.456, 0.406),      # normalize image for pre-trained model
+                                 (0.229, 0.224, 0.225))
+            ])
 
         val_tfms = transforms.Compose([
-            transforms.Resize((400, 400)),
-            transforms.ToTensor()
+            transforms.Resize(400),
+            transforms.ToTensor(),
+            transforms.Normalize((0.485, 0.456, 0.406),      # normalize image for pre-trained model
+                                 (0.229, 0.224, 0.225))
         ])
 
         self.tokenizer = Tokenizer(root_dir)
@@ -34,8 +43,11 @@ class Model(pl.LightningModule):
         else:
             self.tokenizer.tokenize('Flicker8k_text/Flickr_8k.trainImages.txt')
         
+        self.fine_tune = fine_tune
+        
 
         self.model = CaptionModel(self.tokenizer)
+        self.model.encoder.fine_tune(fine_tune=self.fine_tune)
 
         self.train_ds = CaptionDataset(
             root_dir, 'Flicker8k_text/Flickr_8k.trainImages.txt', self.tokenizer, transform=train_tfms)
@@ -49,11 +61,16 @@ class Model(pl.LightningModule):
 
     def configure_optimizers(self):
         param_groups = [
-            {'params': self.model.encoder.parameters(), 'lr': 1e-5},
             {'params': self.model.decoder.parameters(), 'lr': 1e-3}
         ]
+        if self.fine_tune:
+            param_groups.append({'params': self.model.encoder.parameters(), 'lr': 1e-5})
         optimizer = optim.Adam(param_groups, lr=1e-3)
-        return optimizer
+        steps_per_epoch = math.ceil(len(self.train_ds)/32) // 2
+        scheduler = optim.lr_scheduler.OneCycleLR(optimizer, 
+                                                       max_lr=1e-2, epochs=self.epochs, 
+                                                       steps_per_epoch=steps_per_epoch)
+        return [optimizer], [scheduler]
 
     def training_step(self, batch, batch_idx):
         # training_step defines the train loop.
@@ -111,8 +128,11 @@ if __name__ == '__main__':
                         help="num of epochs to train")
     parser.add_argument("--tokenizer_path", default=None, type=str,
                         help="path to saved tokenizer")
+    parser.add_argument("--fine_tune", default=False, type=bool,
+                        help="fine tuning switch for training")
 
     args = parser.parse_args()
     model = Model(args.root_dir, args.tokenizer_path)
-    trainer = pl.Trainer(accelerator='gpu', devices=1, max_epochs=args.epochs)
+    device_stats = DeviceStatsMonitor() 
+    trainer = pl.Trainer(accelerator='gpu', devices=1, max_epochs=args.epochs, callbacks=[device_stats])
     trainer.fit(model)
