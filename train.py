@@ -18,7 +18,7 @@ from utils import train_collate, val_collate
 
 
 class Model(pl.LightningModule):
-    def __init__(self, root_dir, tokenizer_path, fine_tune):
+    def __init__(self, epochs, root_dir, tokenizer_path, fine_tune):
         super().__init__()
         
         train_tfms = transforms.Compose([
@@ -38,6 +38,8 @@ class Model(pl.LightningModule):
         ])
 
         self.tokenizer = Tokenizer(root_dir)
+        self.epochs = epochs
+
         if tokenizer_path is not None:
             self.tokenizer.load_tokenizer(tokenizer_path)
         else:
@@ -132,7 +134,7 @@ if __name__ == '__main__':
                         help="fine tuning switch for training")
 
     args = parser.parse_args()
-    model = Model(args.root_dir, args.tokenizer_path, args.fine_tune)
+    model = Model(args.epochs, args.root_dir, args.tokenizer_path, args.fine_tune)
     device_stats = DeviceStatsMonitor() 
     trainer = pl.Trainer(accelerator='gpu', devices=1, max_epochs=args.epochs, callbacks=[device_stats])
     trainer.fit(model)
