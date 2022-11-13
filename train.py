@@ -132,7 +132,7 @@ if __name__ == '__main__':
                         help="fine tuning switch for training")
 
     args = parser.parse_args()
-    model = Model(args.root_dir, args.tokenizer_path)
+    model = Model(args.root_dir, args.tokenizer_path, args.fine_tune)
     device_stats = DeviceStatsMonitor() 
     trainer = pl.Trainer(accelerator='gpu', devices=1, max_epochs=args.epochs, callbacks=[device_stats])
     trainer.fit(model)
