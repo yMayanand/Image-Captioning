@@ -14,7 +14,7 @@ from torchvision import transforms
 from dataset import CaptionDataset
 from model import CaptionModel
 from preprocess import Tokenizer
-from utils import train_collate, val_collate
+from utils import *
 
 
 class Model(pl.LightningModule):
@@ -90,7 +90,10 @@ class Model(pl.LightningModule):
         targets = pack_padded_sequence(targets, caplens, batch_first=True)
 
         loss = self.loss_func(scores.data, targets.data)
+        load, mem_util = get_gpu_usage()
         self.log('train_loss', loss)
+        self.log('gpu_load', load)
+        self.log('gpu_mem_usage', mem_util)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -136,6 +139,6 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     model = Model(args.epochs, args.root_dir, args.tokenizer_path, args.fine_tune)
-    device_stats = DeviceStatsMonitor() 
-    trainer = pl.Trainer(accelerator='gpu', devices=1, max_epochs=args.epochs, callbacks=[device_stats])
+    #device_stats = DeviceStatsMonitor() 
+    trainer = pl.Trainer(accelerator='gpu', devices=1, max_epochs=args.epochs)
     trainer.fit(model)
