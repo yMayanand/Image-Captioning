@@ -146,7 +146,7 @@ if __name__ == '__main__':
 
     if args.ckpt_path is not None:
         if os.path.exists(args.ckpt_path):
-            model = model.load_from_checkpoint(args.ckpt_path)
+            model = model.load_from_checkpoint(args.ckpt_path, args.epochs, args.root_dir, args.tokenizer_path, args.fine_tune)
         
     #device_stats = DeviceStatsMonitor() 
     trainer = pl.Trainer(accelerator='gpu', devices=1, max_epochs=args.epochs)
