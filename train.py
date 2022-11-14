@@ -1,9 +1,9 @@
 from argparse import ArgumentParser
 
+import os
 import math
 import numpy as np
 import pytorch_lightning as pl
-from pytorch_lightning.callbacks import DeviceStatsMonitor 
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -17,7 +17,7 @@ from preprocess import Tokenizer
 from utils import *
 
 
-class Model(pl.LightningModule):
+class LitModel(pl.LightningModule):
     def __init__(self, epochs, root_dir, tokenizer_path, fine_tune):
         super().__init__()
         
@@ -136,9 +136,18 @@ if __name__ == '__main__':
                         help="path to saved tokenizer")
     parser.add_argument("--fine_tune", default=False, type=bool,
                         help="fine tuning switch for training")
+    parser.add_argument("--ckpt_path", default=None, type=str,
+                        help="path to load checkpoint stored")
+
 
     args = parser.parse_args()
-    model = Model(args.epochs, args.root_dir, args.tokenizer_path, args.fine_tune)
+
+    model = LitModel(args.epochs, args.root_dir, args.tokenizer_path, args.fine_tune)
+
+    if args.ckpt_path is not None:
+        if os.path.exists(args.ckpt_path):
+            model = model.load_from_checkpoint(args.ckpt_path)
+        
     #device_stats = DeviceStatsMonitor() 
     trainer = pl.Trainer(accelerator='gpu', devices=1, max_epochs=args.epochs)
     trainer.fit(model)

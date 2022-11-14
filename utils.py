@@ -1,6 +1,7 @@
 import GPUtil
 import torch
 from torch.nn.utils.rnn import pad_sequence
+from pytorch_lightning.callbacks import Callback
 
 
 def get_gpu_usage():
@@ -21,3 +22,9 @@ def val_collate(batch):
     xs, ys, zs = list(zip(*batch))
     xs = torch.stack(xs)
     return xs, ys, zs
+
+
+# TODO: dataset --> dataloader --> forward --> backward
+class TrainingStats(Callback):
+    def __init__(self) -> None:
+        super().__init__()
