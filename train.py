@@ -72,13 +72,15 @@ class LitModel(pl.LightningModule):
         param_groups = [
             {'params': self.model.decoder.parameters(), 'lr': 1e-3}
         ]
+        max_lr = [1e-2]
         if self.fine_tune:
             param_groups.append(
                 {'params': self.model.encoder.parameters(), 'lr': 1e-5})
+            max_lr.append(1e-4)
         optimizer = optim.Adam(param_groups, lr=1e-3)
-        steps_per_epoch = math.ceil(len(self.train_ds)/32) // 2
+        steps_per_epoch = math.ceil(len(self.train_ds)/32)
         scheduler = optim.lr_scheduler.OneCycleLR(optimizer,
-                                                  max_lr=[1e-2, 1e-4], epochs=self.epochs,
+                                                  max_lr=max_lr, epochs=self.epochs,
                                                   steps_per_epoch=steps_per_epoch)
         return [optimizer], [scheduler]
 
@@ -113,8 +115,6 @@ class LitModel(pl.LightningModule):
         bleu4 = bleu_score(captions, y)
 
         self.val_bleu_meter.update(bleu4)
-
-        self.log('val_bleu_score', bleu4)
 
     def predict_step(self, batch, batch_idx):
         # this is the prediction loop
