@@ -1,12 +1,13 @@
+import math
+import os
 from argparse import ArgumentParser
 
-import os
-import math
 import numpy as np
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from pytorch_lightning.callbacks import LearningRateMonitor
 from torch.nn.utils.rnn import pack_padded_sequence
 from torchtext.data.metrics import bleu_score
 from torchvision import transforms
@@ -20,21 +21,25 @@ from utils import *
 class LitModel(pl.LightningModule):
     def __init__(self, epochs, root_dir, tokenizer_path, fine_tune):
         super().__init__()
-        
+
         train_tfms = transforms.Compose([
-            transforms.Resize(410),                          # smaller edge of image resized to 256
-            transforms.RandomCrop(400),                      # get 224x224 crop from random location
-            transforms.RandomHorizontalFlip(),               # horizontally flip image with probability=0.5
-            transforms.ToTensor(),                           # convert the PIL Image to a tensor
-            transforms.Normalize((0.485, 0.456, 0.406),      # normalize image for pre-trained model
+            # radom crop of image resized to 256
+            transforms.RandomResizedCrop(256, scale=(0.9, 1)),
+            # horizontally flip image with probability=0.5
+            transforms.RandomHorizontalFlip(),
+            # convert the PIL Image to a tensor
+            transforms.ToTensor(),
+            # normalize image for pre-trained model
+            transforms.Normalize((0.485, 0.456, 0.406),
                                  (0.229, 0.224, 0.225))
-            ])
+        ])
 
         val_tfms = transforms.Compose([
-            transforms.Resize(410),                          # smaller edge of image resized to 256
-            transforms.RandomCrop(400),
+            # smaller edge of image resized to 256
+            transforms.Resize((256, 256)),
             transforms.ToTensor(),
-            transforms.Normalize((0.485, 0.456, 0.406),      # normalize image for pre-trained model
+            # normalize image for pre-trained model
+            transforms.Normalize((0.485, 0.456, 0.406),
                                  (0.229, 0.224, 0.225))
         ])
 
@@ -45,9 +50,8 @@ class LitModel(pl.LightningModule):
             self.tokenizer.load_tokenizer(tokenizer_path)
         else:
             self.tokenizer.tokenize('Flicker8k_text/Flickr_8k.trainImages.txt')
-        
+
         self.fine_tune = fine_tune
-        
 
         self.model = CaptionModel(self.tokenizer)
         self.model.encoder.fine_tune(fine_tune=self.fine_tune)
@@ -59,6 +63,8 @@ class LitModel(pl.LightningModule):
 
         self.loss_func = nn.CrossEntropyLoss()
 
+        self.val_bleu_meter = AverageMeter()
+
     def forward(self, x):
         pass
 
@@ -67,12 +73,13 @@ class LitModel(pl.LightningModule):
             {'params': self.model.decoder.parameters(), 'lr': 1e-3}
         ]
         if self.fine_tune:
-            param_groups.append({'params': self.model.encoder.parameters(), 'lr': 1e-5})
+            param_groups.append(
+                {'params': self.model.encoder.parameters(), 'lr': 1e-5})
         optimizer = optim.Adam(param_groups, lr=1e-3)
         steps_per_epoch = math.ceil(len(self.train_ds)/32) // 2
-        scheduler = optim.lr_scheduler.OneCycleLR(optimizer, 
-                                                       max_lr=1e-2, epochs=self.epochs, 
-                                                       steps_per_epoch=steps_per_epoch)
+        scheduler = optim.lr_scheduler.OneCycleLR(optimizer,
+                                                  max_lr=[1e-2, 1e-4], epochs=self.epochs,
+                                                  steps_per_epoch=steps_per_epoch)
         return [optimizer], [scheduler]
 
     def training_step(self, batch, batch_idx):
@@ -105,8 +112,9 @@ class LitModel(pl.LightningModule):
 
         bleu4 = bleu_score(captions, y)
 
+        self.val_bleu_meter.update(bleu4)
+
         self.log('val_bleu_score', bleu4)
-        
 
     def predict_step(self, batch, batch_idx):
         # this is the prediction loop
@@ -139,15 +147,18 @@ if __name__ == '__main__':
     parser.add_argument("--ckpt_path", default=None, type=str,
                         help="path to load checkpoint stored")
 
-
     args = parser.parse_args()
 
-    model = LitModel(args.epochs, args.root_dir, args.tokenizer_path, args.fine_tune)
+    model = LitModel(args.epochs, args.root_dir,
+                     args.tokenizer_path, args.fine_tune)
 
     if args.ckpt_path is not None:
         if os.path.exists(args.ckpt_path):
-            model = model.load_from_checkpoint(args.ckpt_path, epochs=args.epochs, root_dir=args.root_dir, tokenizer_path=args.tokenizer_path, fine_tune=args.fine_tune)
-        
-    #device_stats = DeviceStatsMonitor() 
-    trainer = pl.Trainer(accelerator='gpu', devices=1, max_epochs=args.epochs)
+            model = model.load_from_checkpoint(
+                args.ckpt_path, epochs=args.epochs, root_dir=args.root_dir, tokenizer_path=args.tokenizer_path, fine_tune=args.fine_tune)
+
+    #device_stats = DeviceStatsMonitor()
+    lr_monitor = LearningRateMonitor(logging_interval='step')
+    val_metric_logger = ValMetricLogger()
+    trainer = pl.Trainer(accelerator='gpu', devices=1, max_epochs=args.epochs, callbacks=[lr_monitor, val_metric_logger])
     trainer.fit(model)
