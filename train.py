@@ -79,9 +79,14 @@ class LitModel(pl.LightningModule):
             max_lr.append(1e-4)
         optimizer = optim.Adam(param_groups, lr=1e-3)
         steps_per_epoch = math.ceil(len(self.train_ds)/32)
-        scheduler = optim.lr_scheduler.OneCycleLR(optimizer,
+        sched = optim.lr_scheduler.OneCycleLR(optimizer,
                                                   max_lr=max_lr, epochs=self.epochs,
                                                   steps_per_epoch=steps_per_epoch)
+        scheduler = {
+            "scheduler": sched,
+            "interval": "step",
+            "frequency": 1,
+        }
         return [optimizer], [scheduler]
 
     def training_step(self, batch, batch_idx):
@@ -142,7 +147,7 @@ if __name__ == '__main__':
                         help="num of epochs to train")
     parser.add_argument("--tokenizer_path", default=None, type=str,
                         help="path to saved tokenizer")
-    parser.add_argument("--fine_tune", default=False, type=bool,
+    parser.add_argument("--fine_tune", action='store_true',
                         help="fine tuning switch for training")
     parser.add_argument("--ckpt_path", default=None, type=str,
                         help="path to load checkpoint stored")
