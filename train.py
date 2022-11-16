@@ -72,13 +72,13 @@ class LitModel(pl.LightningModule):
         param_groups = [
             {'params': self.model.decoder.parameters(), 'lr': 1e-3}
         ]
-        max_lr = [1e-2]
+        max_lr = [1e-3]
         if self.fine_tune:
             param_groups.append(
                 {'params': self.model.encoder.parameters(), 'lr': 1e-5})
             max_lr.append(1e-4)
         optimizer = optim.Adam(param_groups, lr=1e-3)
-        steps_per_epoch = math.ceil(len(self.train_ds)/32)
+        steps_per_epoch = math.ceil(len(self.train_ds)/128)
         sched = optim.lr_scheduler.OneCycleLR(optimizer,
                                                   max_lr=max_lr, epochs=self.epochs,
                                                   steps_per_epoch=steps_per_epoch)
@@ -130,12 +130,12 @@ class LitModel(pl.LightningModule):
 
     def val_dataloader(self):
         loader = torch.utils.data.DataLoader(
-            self.val_ds, batch_size=32,  num_workers=2, pin_memory=True, collate_fn=val_collate)
+            self.val_ds, batch_size=128,  num_workers=2, pin_memory=True, collate_fn=val_collate)
         return loader
 
     def train_dataloader(self):
         loader = torch.utils.data.DataLoader(
-            self.train_ds, batch_size=32, shuffle=True, pin_memory=True, num_workers=2, collate_fn=train_collate)
+            self.train_ds, batch_size=128, shuffle=True, pin_memory=True, num_workers=2, collate_fn=train_collate)
         return loader
 
 
