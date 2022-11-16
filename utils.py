@@ -44,12 +44,16 @@ class AverageMeter(object):
         self.count += n
         self.avg = self.sum / self.count
 
-class ValMetricLogger(Callback):
+class CustomMetricLogger(Callback):
     def on_validation_epoch_end(self, trainer, pl_module):
         val = pl_module.val_bleu_meter.avg
         trainer.logger.log_metrics({'val_bleu_score': val}, trainer.global_step)
         pl_module.val_bleu_meter.reset()
 
+    def on_before_optimizer_step(self, trainer, pl_module, optimizer, opt_idx):
+        if trainer.global_step % 10 == 0:
+            for name, param in pl_module.model.named_parameters():
+                trainer.logger.experiment.add_histogram(name, param.grad, trainer.global_step)
 
 
 # TODO: dataset --> dataloader --> forward --> backward
