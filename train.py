@@ -164,6 +164,6 @@ if __name__ == '__main__':
 
     #device_stats = DeviceStatsMonitor()
     lr_monitor = LearningRateMonitor(logging_interval='step')
-    val_metric_logger = ValMetricLogger()
-    trainer = pl.Trainer(accelerator='gpu', devices=1, log_every_n_steps=10, max_epochs=args.epochs, callbacks=[lr_monitor, val_metric_logger])
+    cust_metric_logger = CustomMetricLogger()
+    trainer = pl.Trainer(accelerator='gpu', devices=1, log_every_n_steps=10, max_epochs=args.epochs, callbacks=[lr_monitor, cust_metric_logger])
     trainer.fit(model)
