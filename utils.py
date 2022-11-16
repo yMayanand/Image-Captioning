@@ -53,7 +53,8 @@ class CustomMetricLogger(Callback):
     def on_before_optimizer_step(self, trainer, pl_module, optimizer, opt_idx):
         if trainer.global_step % 10 == 0:
             for name, param in pl_module.model.named_parameters():
-                trainer.logger.experiment.add_histogram(name, param.grad, trainer.global_step)
+                if param.requires_grad:
+                    trainer.logger.experiment.add_histogram(name, param.grad, trainer.global_step)
 
 
 # TODO: dataset --> dataloader --> forward --> backward
