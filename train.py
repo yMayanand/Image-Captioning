@@ -87,7 +87,7 @@ class LitModel(pl.LightningModule):
             "interval": "step",
             "frequency": 1,
         }"""
-        return [optimizer], [scheduler]
+        return [optimizer]#, [scheduler]
 
     def training_step(self, batch, batch_idx):
         # training_step defines the train loop.
