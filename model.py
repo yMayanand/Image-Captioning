@@ -24,7 +24,7 @@ class Encoder(nn.Module):
                 p.requires_grad = fine_tune
 
 class Decoder(nn.Module):
-    def __init__(self, tokenizer, dropout=0.5):
+    def __init__(self, tokenizer, dropout=0.):
         super().__init__()
         self.tokenizer = tokenizer
         self.vocab_size = len(tokenizer)
