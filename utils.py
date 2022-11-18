@@ -62,10 +62,10 @@ class CustomMetricLogger(Callback):
     def on_train_batch_start(self, trainer, pl_module, batch, batch_idx):
         _len = len(trainer.train_dataloader)
         trainer.cp_start_time = time.monotonic()
-        if not (trainer.global_step % _len == 1):
+        if not (trainer.global_step % _len == 0):
             trainer.dl_start_time = time.monotonic()
 
-            diff = trainer.dl_end_time - trainer.dl_start_time
+            diff = trainer.dl_start_time - trainer.dl_start_time
             trainer.train_dl_time.update(diff)
     
     def on_train_batch_end(self, trainer, pl_module, batch, batch_idx):
@@ -73,7 +73,7 @@ class CustomMetricLogger(Callback):
         trainer.cp_end_time = time.monotonic()
         diff = trainer.cp_end_time - trainer.cp_start_time
         trainer.train_cp_time.update(diff)
-        if not (trainer.global_step % _len == 0):
+        if not (trainer.global_step % _len == (_len - 1)):
             trainer.dl_end_time = time.monotonic()
         
 
