@@ -69,15 +69,15 @@ class LitModel(pl.LightningModule):
         pass
 
     def configure_optimizers(self):
-        param_groups = [
-            {'params': self.model.decoder.parameters(), 'lr': 5e-4}
-        ]
-        max_lr = [1e-2]
+        optimizers = []
+        optimizer1 = optim.Adam(self.model.decoder.parameters(), lr=4e-4)
+        optimizers.append(optimizer1)
+
         if self.fine_tune:
-            param_groups.append(
-                {'params': self.model.encoder.parameters(), 'lr': 1e-4})
-            max_lr.append(1e-3)
-        optimizer = optim.Adam(param_groups, lr=1e-3, weight_decay=5e-5)
+            optimizer2 = optim.Adam(self.model.encoder.parameters(), lr=1e-4)
+            optimizers.append(optimizer2)
+            
+    
         """steps_per_epoch = math.ceil(len(self.train_ds)/128)
         sched = optim.lr_scheduler.OneCycleLR(optimizer,
                                                   max_lr=max_lr, epochs=self.epochs,
@@ -87,7 +87,7 @@ class LitModel(pl.LightningModule):
             "interval": "step",
             "frequency": 1,
         }"""
-        return [optimizer]#, [scheduler]
+        return optimizers#, [scheduler]
 
     def training_step(self, batch, batch_idx):
         # training_step defines the train loop.
@@ -157,13 +157,13 @@ if __name__ == '__main__':
     model = LitModel(args.epochs, args.root_dir,
                      args.tokenizer_path, args.fine_tune)
 
-    if args.ckpt_path is not None:
+    """if args.ckpt_path is not None:
         if os.path.exists(args.ckpt_path):
             model = model.load_from_checkpoint(
                 args.ckpt_path, epochs=args.epochs, root_dir=args.root_dir, tokenizer_path=args.tokenizer_path, fine_tune=args.fine_tune)
-
-    #device_stats = DeviceStatsMonitor()
+"""
+    
     lr_monitor = LearningRateMonitor(logging_interval='step')
     cust_metric_logger = CustomMetricLogger()
     trainer = pl.Trainer(accelerator='gpu', devices=1, log_every_n_steps=10, max_epochs=args.epochs, callbacks=[lr_monitor, cust_metric_logger])
-    trainer.fit(model)
+    trainer.fit(model, ckpt_path=args.ckpt_path)
