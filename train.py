@@ -70,14 +70,14 @@ class LitModel(pl.LightningModule):
 
     def configure_optimizers(self):
         param_groups = [
-            {'params': self.model.decoder.parameters(), 'lr': 4e-4}
+            {'params': self.model.decoder.parameters(), 'lr': 5e-4}
         ]
         max_lr = [1e-2]
         if self.fine_tune:
             param_groups.append(
                 {'params': self.model.encoder.parameters(), 'lr': 1e-4})
             max_lr.append(1e-3)
-        optimizer = optim.Adam(param_groups, lr=1e-3, weight_decay=1e-4)
+        optimizer = optim.Adam(param_groups, lr=1e-3, weight_decay=5e-5)
         """steps_per_epoch = math.ceil(len(self.train_ds)/128)
         sched = optim.lr_scheduler.OneCycleLR(optimizer,
                                                   max_lr=max_lr, epochs=self.epochs,
